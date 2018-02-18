@@ -1,0 +1,207 @@
+extends layout
+
+block headerScripts
+  script(src="javascripts/phaser.min.js")
+
+block content
+  style.
+    body {
+      background-color: #3D3D3D;
+      padding: 0;
+    }
+
+    canvas {
+      margin: 0 auto;
+    }
+
+  script(type='text/javascript').
+    var game = new Phaser.Game(800, 600, Phaser.AUTO, '', {preload: preload, create: create, update: update}),
+      freeze = false,
+      playerOne, playerTwo, sq, cursors;
+
+    function preload() {
+      game.load.image('white', 'images/white.png');
+    }
+
+    function create() {
+      game.physics.startSystem(Phaser.Physics.ARCADE);
+
+      playerOne = game.add.sprite(10, (game.world.height / 2) - 160, 'white');
+      playerTwo = game.add.sprite(game.world.width - 74, (game.world.height / 2) - 160, 'white');
+
+      playerOne.scale.setTo(2, 10)
+      playerTwo.scale.setTo(2, 10);
+
+      game.physics.arcade.enable(playerOne);
+      game.physics.arcade.enable(playerTwo);
+
+      playerOne.body.allowDrag = false;
+      playerTwo.body.allowDrag = false;
+
+      playerOne.body.immovable = true;
+      playerTwo.body.immovable = true;
+
+      playerOne.body.allowGravity = false;
+      playerTwo.body.allowGravity = false;
+
+      playerOne.body.collideWorldBounds = true;
+      playerTwo.body.collideWorldBounds = true;
+
+      sq = game.add.sprite((game.world.width / 2) - 32, (game.world.height / 2) - 32, 'white');
+
+      sq.scale.setTo(2, 2);
+
+      game.physics.arcade.enable(sq);
+
+      var getRandomSqVelo = function () {
+        switch (getRandomInt(0, 4)) {
+          case 0:
+            sq.body.velocity.x = 200;
+            break;
+          case 1:
+            sq.body.velocity.x = -200;
+            break;
+          case 2:
+          case 3:
+            sq.body.velocity.x = 0;
+        }
+
+        switch (getRandomInt(0, 4)) {
+          case 0:
+            sq.body.velocity.y = 200;
+            break;
+          case 1:
+            sq.body.velocity.y = -200;
+            break;
+          case 2:
+          case 3:
+            sq.body.velocity.y = 0;
+        }
+      }
+
+      do {
+        getRandomSqVelo();
+      } while (!sq.body.velocity.x)
+
+      sq.body.velocity.x = getRandomInt(0, 2) ? 200 : -200;
+      sq.body.velocity.y = getRandomInt(0, 2) ? 200 : -200;
+
+      sq.body.collideWorldBounds = true;
+      sq.body.allowDrag = false;
+      sq.body.allowGravity = false;
+
+      sq.body.bounce.set(1);
+
+      sq.body.onWorldBounds = new Phaser.Signal();
+      sq.body.onWorldBounds.add(sqHitEdges, this);
+
+      cursors = game.input.keyboard.createCursorKeys();
+    }
+
+    function update() {
+      if (freeze) {
+        return false;
+      }
+
+      var playerOneCollide = game.physics.arcade.collide(playerOne, sq);
+      var playerTwoCollide = game.physics.arcade.collide(playerTwo, sq);
+
+      playerOne.body.velocity.y = 0;
+      playerTwo.body.velocity.y = 0;
+
+      if (cursors.up.isDown) {
+        playerOne.body.velocity.y = -150;
+      } else if (cursors.down.isDown) {
+        playerOne.body.velocity.y = 150;
+      }
+
+      // COMPUTER PLAYER STUFF
+
+      var ptPosition = playerTwo.worldPosition.y + 160,
+        sqPosition = sq.worldPosition.y + 32;
+
+      if (ptPosition !== sqPosition) {
+        if (ptPosition > sqPosition) {
+          playerTwo.body.velocity.y = -150;
+        } else {
+          playerTwo.body.velocity.y = 150;
+        }
+      }
+
+      // COMPUTER PLAYER STUFF
+
+      var slightlyIncreaseSqVelo = function() {
+        var spIn = 50;
+        switch(getRandomInt(0, 2)) {
+          case 0:
+            sq.body.velocity.x < 0 ? sq.body.velocity.x -= spIn : sq.body.velocity.x += spIn;
+            break;
+          case 1:
+            sq.body.velocity.y < 0 ? sq.body.velocity.y -= spIn : sq.body.velocity.y += spIn;
+            break;
+        }
+      };
+
+      if (playerOneCollide || playerTwoCollide) {
+        slightlyIncreaseSqVelo();
+      }
+    }
+
+    function getRandomInt(min, max) {
+      min = Math.ceil(min);
+      max = Math.floor(max);
+      return Math.floor(Math.random() * (max - min)) + min; //The maximum is exclusive and the minimum is inclusive
+    }
+
+    function sqHitEdges(thisSq, up, down, left, right) {
+      if (left || right) {
+        gameOver(left);
+      }
+    }
+
+    function gameOver(didLose) {
+      // playerTwo.body.velocity.y = 0;
+      // playerOne.body.velocity.y = 0;
+
+      playerOne.kill();
+      playerTwo.kill();
+      sq.kill();
+
+
+      var text = game.add.text(0, 0, (didLose ? 'Game Over' : 'You Win'), {
+        'fontSize': '32px',
+        'fill': '#fff',
+        'boundsAlignH': 'center',
+        'boundsAlignV': 'middle'
+      });
+
+      var myIntCount = 5;
+
+      var text2 = game.add.text(0, 0, myIntCount, {
+        'fontSize': '32px',
+        'fill': '#fff',
+        'boundsAlignH': 'center',
+        'boundsAlignV': 'middle'
+      });
+
+      text.setTextBounds(0, 0, 800, 600);
+      text2.setTextBounds(0, 32, 800, 600);
+
+      freeze = true;
+
+      var myInterval = setInterval(function() {
+        myIntCount--;
+
+        if (text) {
+          text2.setText(myIntCount, true);
+        }
+
+        if (!myIntCount) {
+          clearInterval(myInterval);
+
+          freeze = false;
+
+          game.state.restart();
+        }
+      }, 1000);
+    }
